@@ -1,0 +1,4 @@
+shirooauth\resources\TokenResource.class
+shirooauth\Application.class
+shirooauth\domain\Token.class
+shirooauth\shiro\TokenShiroAuthRealm.class
