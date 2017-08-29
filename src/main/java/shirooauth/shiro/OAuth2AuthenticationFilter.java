@@ -5,7 +5,6 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.oltu.oauth2.as.request.OAuthAuthzRequest;
 import org.apache.oltu.oauth2.as.request.OAuthTokenRequest;
 import org.apache.oltu.oauth2.common.message.types.GrantType;
 import org.apache.oltu.oauth2.common.message.types.ParameterStyle;
@@ -19,7 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
-import shirooauth.domain.Token;
+import shirooauth.token.Token;
+import shirooauth.token.domain.JWTService;
 
 public class OAuth2AuthenticationFilter extends AuthenticatingFilter {
   
@@ -56,9 +56,11 @@ public class OAuth2AuthenticationFilter extends AuthenticatingFilter {
     
     final String token;
     final HttpServletResponse httpResponse = WebUtils.toHttp(response);
+    final JWTService jwtService = new JWTService();
     
     try {
       
+      // usa o OLTU para verficar o request e obter o token
       OAuthAccessResourceRequest oauthRequest = new OAuthAccessResourceRequest((HttpServletRequest) request, ParameterStyle.HEADER);
       token = oauthRequest.getAccessToken();
       
@@ -66,17 +68,21 @@ public class OAuth2AuthenticationFilter extends AuthenticatingFilter {
       LOG.debug("onAccessDenied:subject {}", subject.isAuthenticated());
       
       LOG.debug("onAccessDenied:token {}", token);
-      if(!StringUtils.isEmpty(token) && token.equals("08972624e61497237836c5b4717cef2")) {
-        // executa shiro login
+      
+      if ( !StringUtils.isEmpty(token) && jwtService.isValidToken(token) ) {
+        
+        // executa shiro login -> createToken
         final boolean loggedIn = executeLogin(request, response);
         LOG.debug("onAccessDenied:loggedIntoken {}", loggedIn);
+        
         return loggedIn;
+        
       } else {
         httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
       }
       
     } catch (Exception e) {
-      LOG.error("Erro ao obter OAuth Token do Header");
+      LOG.error("Erro ao obter Token do Header");
       httpResponse.setStatus(HttpServletResponse.SC_BAD_REQUEST);
     }
     
@@ -104,8 +110,8 @@ public class OAuth2AuthenticationFilter extends AuthenticatingFilter {
         }
         
       } catch (Exception e) {
+        // requisição não sendo do tipo OAuth2, terá o token de Authorization verificado
         LOG.warn("REQUISICAO NÂO È DO TIPO OAuth2");
-        e.printStackTrace();
       }
       
       // sempre nega o acesso quando nao for GrantType PASSWORD

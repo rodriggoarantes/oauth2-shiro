@@ -3,8 +3,6 @@ package shirooauth.resources;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.oltu.oauth2.as.issuer.MD5Generator;
-import org.apache.oltu.oauth2.as.issuer.OAuthIssuerImpl;
 import org.apache.oltu.oauth2.as.request.OAuthTokenRequest;
 import org.apache.oltu.oauth2.as.response.OAuthASResponse;
 import org.apache.oltu.oauth2.common.exception.OAuthProblemException;
@@ -13,16 +11,22 @@ import org.apache.oltu.oauth2.common.message.OAuthResponse;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import shirooauth.token.domain.JWTService;
 
 @RestController
 @RequestMapping("/")
 public class TokenResource {
   
   private static final Logger LOG = LoggerFactory.getLogger(TokenResource.class);
+  
+  @Autowired
+  private JWTService jwtService;
   
   @RequestMapping(value="/token", method = RequestMethod.POST)
   public @ResponseBody String getToken(HttpServletRequest req) {
@@ -39,17 +43,15 @@ public class TokenResource {
         OAuthASResponse.OAuthAuthorizationResponseBuilder builder = OAuthASResponse
             .authorizationResponse(req, HttpServletResponse.SC_FOUND);
 
-        // gerar access token
-        OAuthIssuerImpl oauthIssuerImpl = new OAuthIssuerImpl(new MD5Generator());
-        builder.setCode(oauthIssuerImpl.authorizationCode());
-        builder.setAccessToken(oauthIssuerImpl.accessToken());
+        // gerar access token JWT
+        //builder.setCode(oauthIssuerImpl.authorizationCode());
+        builder.setAccessToken( jwtService.createTokenAccess(oauthRequest.getClientId()) );
+        builder.setParam("refresh_token", jwtService.createTokenAccess(oauthRequest.getClientId()));
         builder.setExpiresIn(3600L);
-        builder.setParam("nome", "Rodrigo");
-        builder.setParam("login", "rodrigo.arantes");
+        //builder.setParam("login", "rodrigo.arantes");
         
         final OAuthResponse response = builder.buildJSONMessage();
         
-        //final Token t = new Token("X", "24/08", "R");
         return response.getBody();
         
       } catch (OAuthSystemException e) {
